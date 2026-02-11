@@ -1,0 +1,11 @@
+{
+  "video_url": "https://www.tiktok.com/@dopa.music/video/7389861103024590087?q=v%E1%BA%BD%20tr%C3%BAc%20nh%C3%A2n&t=1770796969840",
+  "limit_comments": 50,
+
+  "delay_range": [2000, 4000],
+  "batch_size": 10,
+  "batch_delay": 5000,
+
+  "deep_scan_profile": true
+
+}
