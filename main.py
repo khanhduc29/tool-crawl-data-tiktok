@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from core.browser import create_browser
+from crawlers.scan_top_posts import crawl_top_posts
 from crawlers.search_user import crawl_users_by_keyword
 from core.logger import setup_logger
 from crawlers.scan_relations import crawl_relations
@@ -33,7 +34,8 @@ async def main():
 
     # FORM = "scan_users"
     # FORM = "scan_relations"
-    FORM = "scan_video_comments"
+    # FORM = "scan_video_comments"
+    FORM = "scan_top_posts"
 
     CONFIG = load_config(FORM)
 
@@ -51,7 +53,8 @@ async def main():
 
         elif FORM == "scan_video_comments":
             result = await crawl_video_comments(page=page, **CONFIG)
-
+        elif FORM == "scan_top_posts":
+            result = await crawl_top_posts(page=page, **CONFIG)
         else:
             raise ValueError("❌ Form không hợp lệ")
         logger.info("📦 KẾT QUẢ CUỐI CÙNG:")
