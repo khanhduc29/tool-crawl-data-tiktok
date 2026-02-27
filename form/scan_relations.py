@@ -3,7 +3,7 @@ def get_scan_relations_form():
         "scan_type": "relations",
 
         "scan_account": "tool_bot_01",
-        "keyword": "makeup",
+        "keyword": "leetrungkyeen",
 
         "source_username": "flowerknowsglobal",
         "relation_type": "following",   # following | follower
