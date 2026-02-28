@@ -105,17 +105,16 @@ async def extract_top_videos(page, keyword, limit):
 
     results = []
     seen = set()
-    stable_rounds = 0
 
     for round_idx in range(12):
         logger.info(f"🔄 Scroll search round {round_idx + 1}")
 
-        links = page.locator("a[href*='/video/']")
-        count = await links.count()
-        logger.info(f"🎞 Video links visible: {count}")
+        cards = page.locator("a[href*='/video/']")
+        count = await cards.count()
 
         for i in range(count):
-            href = await links.nth(i).get_attribute("href")
+            card = cards.nth(i)
+            href = await card.get_attribute("href")
             if not href:
                 continue
 
@@ -126,36 +125,32 @@ async def extract_top_videos(page, keyword, limit):
             seen.add(video_id)
             video_url = normalize_tiktok_url(href)
 
+            # ===== thumbnail =====
+            thumb = None
+            img = card.locator("img[src*='tiktokcdn.com']")
+            if await img.count() > 0:
+                thumb = await img.first.get_attribute("src")
+
+            # ===== view count =====
+            view_count = None
+            view_el = card.locator("strong[data-e2e='video-views']")
+            if await view_el.count() > 0:
+                view_count = parse_number(await view_el.first.inner_text())
+
             results.append({
                 "video_id": video_id,
                 "video_url": video_url,
-
+                "thumbnail": thumb,
+                "view_count": view_count,
             })
+
             logger.info(f"🎬 Found video: {video_id}")
 
             if len(results) >= limit:
                 return results
 
-        before = len(seen)
-
-        # 🔽 scroll đúng cách
         await auto_scroll_video(page, steps=2)
-
-        # ⏳ chờ TikTok load batch mới
         await page.wait_for_timeout(4000)
-
-        after = len(seen)
-
-        if after == before:
-            stable_rounds += 1
-            logger.info(f"⚠ No new videos round {stable_rounds}")
-        else:
-            stable_rounds = 0
-
-        # ⛔ dừng khi TikTok thật sự không load nữa
-        if stable_rounds >= 4:
-            logger.info("🛑 TikTok stopped loading new videos")
-            break
 
     return results
 
@@ -169,26 +164,31 @@ async def crawl_video_detail(page, scan_account, keyword, video_url):
     await page.goto(video_url, timeout=60000, wait_until="domcontentloaded")
     await page.wait_for_timeout(4000)
 
+    # ===== caption =====
     caption = None
-    if await page.locator("h1").count() > 0:
-        caption = await page.locator("h1").first.inner_text()
+    h1 = page.locator("h1")
+    if await h1.count() > 0:
+        caption = await h1.first.inner_text()
 
-    stats = page.locator("strong[data-e2e$='count']")
-    texts = []
-    for i in range(await stats.count()):
-        texts.append(await stats.nth(i).inner_text())
+    # ===== stats =====
+    async def get_stat(label):
+        el = page.locator(f"strong[data-e2e='{label}']")
+        if await el.count() > 0:
+            text = await el.first.inner_text()
+            return parse_number(text)
+        return None
 
-    view_count = parse_number(texts[0]) if len(texts) > 0 else None
-    like_count = parse_number(texts[1]) if len(texts) > 1 else None
-    comment_count = parse_number(texts[2]) if len(texts) > 2 else None
-    share_count = parse_number(texts[3]) if len(texts) > 3 else None
+    view_count = await get_stat("view-count")
+    like_count = await get_stat("like-count")
+    comment_count = await get_stat("comment-count")
+    share_count = await get_stat("share-count")
 
+    # ===== author =====
     author_username = None
-    author_el = page.locator("a[href^='/@']")
-    if await author_el.count() > 0:
-        href = await author_el.first.get_attribute("href")
-        if href:
-            author_username = href.replace("/@", "").split("/")[0]
+    author = page.locator("a[href^='/@']")
+    if await author.count() > 0:
+        href = await author.first.get_attribute("href")
+        author_username = href.replace("/@", "").split("/")[0]
 
     return {
         "scan_account": scan_account,
@@ -208,7 +208,6 @@ async def crawl_video_detail(page, scan_account, keyword, video_url):
         "comment_count": comment_count,
         "share_count": share_count,
     }
-
 
 # =========================
 # MAIN
