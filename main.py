@@ -15,7 +15,8 @@ POLL_INTERVAL = 50           # 50 giây kiểm tra 1 lần
 async def main():
     logger.info("🚀 TIKTOK CRAWLER WORKER START (LOOP MODE)")
 
-    playwright, browser, context, page = await create_browser(
+    # 🔹 Browser + context sống lâu
+    playwright, browser, context, _ = await create_browser(
         headless=False,
         session_file=SESSION_FILE
     )
@@ -23,6 +24,7 @@ async def main():
     try:
         while True:
             task_id = None
+            page = None  # 👈 page chỉ sống theo task
 
             try:
                 task = fetch_pending_task()
@@ -44,6 +46,9 @@ async def main():
 
                 update_task_status(task_id, "running")
 
+                # ✅ TẠO PAGE MỚI CHO TASK
+                page = await context.new_page()
+
                 logger.info("🧠 START CRAWL")
                 result = await asyncio.wait_for(
                     dispatch_scan(scan_type, page, input_data),
@@ -64,8 +69,16 @@ async def main():
                 if task_id:
                     update_task_status(task_id, "error", {"error": str(e)})
 
-            # nghỉ 1 nhịp nhỏ trước khi check tiếp
-            await asyncio.sleep(2)
+            finally:
+                # ✅ ĐÓNG PAGE SAU MỖI TASK
+                if page:
+                    try:
+                        await page.close()
+                    except Exception:
+                        pass
+
+                # nghỉ nhịp ngắn trước vòng tiếp theo
+                await asyncio.sleep(2)
 
     finally:
         await context.close()

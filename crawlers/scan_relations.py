@@ -218,6 +218,7 @@ async def crawl_relations(
     target_username,
     followers_limit,
     following_limit,
+    friends_limit,
     delay_range,
     batch_size,
     batch_delay,
@@ -244,7 +245,7 @@ async def crawl_relations(
     }
 
     if calculate_friends:
-        friends = list(set(followers) & set(following))
+        friends = list(set(followers) & set(following))[:friends_limit]
         result["friends_count"] = len(friends)
         result["friends"] = friends
 
