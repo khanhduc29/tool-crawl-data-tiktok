@@ -158,7 +158,7 @@ async def extract_top_videos(page, keyword, limit):
 # =========================
 # VIDEO DETAIL
 # =========================
-async def crawl_video_detail(page, scan_account, keyword, video_url):
+async def crawl_video_detail(page, keyword, video_url):
     logger.info(f"🎥 Open video: {video_url}")
 
     await page.goto(video_url, timeout=60000, wait_until="domcontentloaded")
@@ -191,7 +191,6 @@ async def crawl_video_detail(page, scan_account, keyword, video_url):
         author_username = href.replace("/@", "").split("/")[0]
 
     return {
-        "scan_account": scan_account,
         "keyword": keyword,
 
         "video_url": video_url,
@@ -214,7 +213,6 @@ async def crawl_video_detail(page, scan_account, keyword, video_url):
 # =========================
 async def crawl_top_posts(
     page,
-    scan_account,
     keyword,
     sort_by="view",
     limit=50,
@@ -234,12 +232,11 @@ async def crawl_top_posts(
         try:
             if deep_scan:
                 detail = await crawl_video_detail(
-                    page, scan_account, keyword, video["video_url"]
+                    page,  keyword, video["video_url"]
                 )
                 video.update(detail)
             else:
                 video.update({
-                    "scan_account": scan_account,
                     "keyword": keyword,
                 })
 
@@ -271,8 +268,8 @@ async def crawl_top_posts(
                 reverse=True
             )
 
-    save_to_json(f"top_posts_{keyword}.json", results)
-    save_to_csv(f"top_posts_{keyword}.csv", results)
+    # save_to_json(f"top_posts_{keyword}.json", results)
+    # save_to_csv(f"top_posts_{keyword}.csv", results)
 
     logger.info(f"🏁 Hoàn thành – tổng video: {len(results)}")
     return results

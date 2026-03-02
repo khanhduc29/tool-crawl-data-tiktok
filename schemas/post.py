@@ -4,7 +4,6 @@ from typing import Optional
 
 @dataclass
 class TikTokPost:
-    scan_account: str
     keyword: str
 
     video_id: str

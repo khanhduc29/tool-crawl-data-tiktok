@@ -1,43 +1,19 @@
-
 import asyncio
 import json
-from pathlib import Path
-
 from core.browser import create_browser
-from crawlers.scan_top_posts import crawl_top_posts
-from crawlers.search_user import crawl_users_by_keyword
 from core.logger import setup_logger
-from crawlers.scan_relations import crawl_relations
-from crawlers.scan_video_comments import crawl_video_comments
+from api.tiktok_api import fetch_pending_task, update_task_status
+from dispatch.scan_dispatcher import dispatch_scan
 
 logger = setup_logger()
 SESSION_FILE = "tiktok_session.json"
 
+CRAWL_TIMEOUT = 15 * 60      # 15 phút / task
+POLL_INTERVAL = 50           # 50 giây kiểm tra 1 lần
 
-def load_config(form_name: str):
-    base_dir = Path(__file__).resolve().parent
-    config_path = base_dir / "configs" / f"{form_name}.json"
-
-    if not config_path.exists():
-        raise FileNotFoundError(f"❌ Không tìm thấy config: {config_path}")
-
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
-
-    if "delay_range" in config:
-        config["delay_range"] = tuple(config["delay_range"])
-
-    return config
 
 async def main():
-    logger.info("🚀 START TIKTOK CRAWLER")
-
-    # FORM = "scan_users"
-    # FORM = "scan_relations"
-    # FORM = "scan_video_comments"
-    FORM = "scan_top_posts"
-
-    CONFIG = load_config(FORM)
+    logger.info("🚀 TIKTOK CRAWLER WORKER START (LOOP MODE)")
 
     playwright, browser, context, page = await create_browser(
         headless=False,
@@ -45,29 +21,57 @@ async def main():
     )
 
     try:
-        if FORM == "scan_users":
-            result = await crawl_users_by_keyword(page=page, **CONFIG)
+        while True:
+            task_id = None
 
-        elif FORM == "scan_relations":
-            result = await crawl_relations(page=page, **CONFIG)
+            try:
+                task = fetch_pending_task()
 
-        elif FORM == "scan_video_comments":
-            result = await crawl_video_comments(page=page, **CONFIG)
-        elif FORM == "scan_top_posts":
-            result = await crawl_top_posts(page=page, **CONFIG)
-        else:
-            raise ValueError("❌ Form không hợp lệ")
-        logger.info("📦 KẾT QUẢ CUỐI CÙNG:")
-        logger.info(json.dumps(result, indent=2, ensure_ascii=False))
+                if not task:
+                    logger.info("😴 No pending task — sleep 50s")
+                    await asyncio.sleep(POLL_INTERVAL)
+                    continue
 
-    except Exception as e:
-        logger.exception(f"❌ ERROR: {e}")
+                task_id = task.get("_id")
+                scan_type = task.get("scan_type")
+                input_data = task.get("input")
+
+                if not task_id or not scan_type or not input_data:
+                    raise ValueError(f"❌ Invalid task format: {task}")
+
+                logger.info(f"📥 GOT TASK {task_id} | {scan_type}")
+                logger.info(json.dumps(input_data, indent=2, ensure_ascii=False))
+
+                update_task_status(task_id, "running")
+
+                logger.info("🧠 START CRAWL")
+                result = await asyncio.wait_for(
+                    dispatch_scan(scan_type, page, input_data),
+                    timeout=CRAWL_TIMEOUT
+                )
+                logger.info("🎉 END CRAWL")
+
+                update_task_status(task_id, "success", result)
+                logger.info("✅ TASK DONE")
+
+            except asyncio.TimeoutError:
+                logger.error("⏰ TASK TIMEOUT")
+                if task_id:
+                    update_task_status(task_id, "error", {"error": "timeout"})
+
+            except Exception as e:
+                logger.exception(f"❌ TASK FAILED: {e}")
+                if task_id:
+                    update_task_status(task_id, "error", {"error": str(e)})
+
+            # nghỉ 1 nhịp nhỏ trước khi check tiếp
+            await asyncio.sleep(2)
 
     finally:
         await context.close()
         await browser.close()
         await playwright.stop()
-        logger.info("🛑 STOP CRAWLER")
+        logger.info("🛑 WORKER STOP")
 
 
 if __name__ == "__main__":

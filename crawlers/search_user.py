@@ -133,7 +133,7 @@ async def extract_usernames_from_search(page, keyword, limit):
 # =========================
 # PROFILE → DATA
 # =========================
-async def crawl_profile(page, scan_account, keyword, username):
+async def crawl_profile(page, keyword, username):
     url = f"https://www.tiktok.com/@{username}"
     logger.info(f"👤 Open profile: {url}")
 
@@ -171,7 +171,6 @@ async def crawl_profile(page, scan_account, keyword, username):
     language = detect_language(bio)
 
     return {
-        "scan_account": scan_account,
         "keyword": keyword,
         "tiktok_id": username,
         "username": username,
@@ -197,7 +196,6 @@ async def crawl_profile(page, scan_account, keyword, username):
 # =========================
 async def crawl_users_by_keyword(
     page,
-    scan_account,
     keyword,
     limit=50,
 
@@ -216,12 +214,11 @@ async def crawl_users_by_keyword(
         try:
             if deep_scan:
                 user_data = await crawl_profile(
-                    page, scan_account, keyword, username
+                    page, keyword, username
                 )
             else:
                 # scan nhẹ – chỉ lấy username
                 user_data = {
-                    "scan_account": scan_account,
                     "keyword": keyword,
                     "tiktok_id": username,
                     "username": username,
@@ -249,8 +246,8 @@ async def crawl_users_by_keyword(
         if len(results) >= limit:
             break
 
-    save_to_json(f"users_{keyword}.json", results)
-    save_to_csv(f"users_{keyword}.csv", results)
+    # save_to_json(f"users_{keyword}.json", results)
+    # save_to_csv(f"users_{keyword}.csv", results)
 
     logger.info(f"🏁 Hoàn thành – tổng user: {len(results)}")
     return results

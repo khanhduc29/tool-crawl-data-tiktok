@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 
 class TikTokRelation(BaseModel):
-    scan_account: str
     source_username: str
     friend_type: str
 

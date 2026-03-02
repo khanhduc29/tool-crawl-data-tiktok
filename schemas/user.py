@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 
 class TikTokUser(BaseModel):
-    scan_account: str
     keyword: str | None
 
     tiktok_id: str

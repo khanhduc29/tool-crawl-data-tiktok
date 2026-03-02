@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 
 class TikTokComment(BaseModel):
-    scan_account: str
     video_url: str
 
     comment_id: str
