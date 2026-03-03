@@ -56,24 +56,27 @@ def save_to_csv(filename, data):
 
 
 # =========================
-# SCROLL – DỨT ĐIỂM
+# SCROLL – TIKTOK SEARCH VIDEO (FINAL)
 # =========================
-async def auto_scroll_video(page, steps=2):
-    """
-    Scroll giống người thật:
-    - scroll nhỏ
-    - chờ lâu
-    - dùng document.scrollingElement
-    """
-    for _ in range(steps):
-        await page.evaluate("""
-            () => {
-                const el = document.scrollingElement || document.documentElement;
-                el.scrollBy(0, window.innerHeight * 0.8);
-            }
-        """)
-        # ⚠️ bắt buộc chờ đủ lâu
-        await page.wait_for_timeout(3000)
+async def auto_scroll_video(page):
+    await page.evaluate("""
+        () => {
+            const target = document.querySelector('#main-content-search_video');
+            if (!target) return;
+
+            // bắn wheel event giống người dùng
+            const event = new WheelEvent('wheel', {
+                deltaY: 1200,
+                bubbles: true,
+                cancelable: true,
+                composed: true
+            });
+
+            target.dispatchEvent(event);
+        }
+    """)
+
+    await page.wait_for_timeout(3000)
 
 def normalize_tiktok_url(href: str | None):
     """
@@ -149,8 +152,7 @@ async def extract_top_videos(page, keyword, limit):
             if len(results) >= limit:
                 return results
 
-        await auto_scroll_video(page, steps=2)
-        await page.wait_for_timeout(4000)
+        await auto_scroll_video(page)
 
     return results
 

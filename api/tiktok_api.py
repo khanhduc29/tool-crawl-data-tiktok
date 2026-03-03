@@ -1,6 +1,8 @@
 import requests
 
-API_BASE = "http://localhost:3000/api/tiktok"
+# API_BASE = "http://localhost:3000/api/tiktok"
+
+API_BASE = "https://be-tool-crawldata.onrender.com/api/tiktok"
 
 
 def fetch_pending_task():
