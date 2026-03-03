@@ -59,24 +59,31 @@ def save_to_csv(filename, data):
 # SCROLL – TIKTOK SEARCH VIDEO (FINAL)
 # =========================
 async def auto_scroll_video(page):
-    await page.evaluate("""
-        () => {
-            const target = document.querySelector('#main-content-search_video');
-            if (!target) return;
+    """
+    Scroll thật bằng chuột để TikTok trigger lazy load
+    """
 
-            // bắn wheel event giống người dùng
-            const event = new WheelEvent('wheel', {
-                deltaY: 1200,
-                bubbles: true,
-                cancelable: true,
-                composed: true
-            });
+    # focus vào feed trước
+    feed = page.locator("div[data-e2e='search_video-item-list']")
+    if await feed.count() == 0:
+        logger.warning("⚠️ Không tìm thấy feed")
+        return
 
-            target.dispatchEvent(event);
-        }
-    """)
+    await feed.first.hover()
+
+    # đếm trước
+    before = await page.locator("a[href*='/video/']").count()
+
+    # scroll chuột nhiều lần
+    for _ in range(6):
+        await page.mouse.wheel(0, 1200)
+        await page.wait_for_timeout(800)
 
     await page.wait_for_timeout(3000)
+
+    after = await page.locator("a[href*='/video/']").count()
+
+    logger.info(f"📈 Video before: {before} | after: {after}")
 
 def normalize_tiktok_url(href: str | None):
     """
@@ -104,7 +111,7 @@ async def extract_top_videos(page, keyword, limit):
     logger.info(f"🌐 Open search video URL: {url}")
 
     await page.goto(url, timeout=60000, wait_until="domcontentloaded")
-    await page.wait_for_timeout(5000)
+    await page.wait_for_selector("a[href*='/video/']", timeout=15000)
 
     results = []
     seen = set()
@@ -219,9 +226,9 @@ async def crawl_top_posts(
     sort_by="view",
     limit=50,
 
-    delay_range=(3000, 6000),
+    delay_range=(1000, 3000),
     batch_size=5,
-    batch_delay=8000,
+    batch_delay=2000,
     deep_scan=False,
     **kwargs,
 ):
